@@ -61,7 +61,6 @@ function AddEditLocation({ dialogOpen, setDialogOpen, updateRowID, setUpdateRowI
             }
 
             axios.put('http://localhost:8000/locations/updateLocationDetails', updateModel).then((res) => {
-                console.log("Update::> ", res.data)
                 if (res.data.status == 'Success') {
                     handleClose();
                     toast.success("Location Updated Successfully!!")
@@ -119,6 +118,7 @@ function AddEditLocation({ dialogOpen, setDialogOpen, updateRowID, setUpdateRowI
                             validationSchema={
                                 Yup.object().shape({
                                     locationName: Yup.string().required('Item Name is required'),
+                                    phone: Yup.string().matches(/^\d{10}$/, 'Phone number must be 10 digits long'),
                                 })
                             }
                             onSubmit={() => UploadLocation()}

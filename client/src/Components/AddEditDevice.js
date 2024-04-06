@@ -7,7 +7,7 @@ import axios, { Axios } from 'axios';
 import { toast } from 'react-toastify';
 import CancelIcon from '@mui/icons-material/Cancel';
 
-function AddEditDevice({ deviceDialog, setDeviceDialog }) {
+function AddEditDevice({ deviceDialog, setDeviceDialog, updateRowID, setUpdateRowID }) {
     const inputRef = useRef(null);
     const [deviceData, setDeviceData] = useState({
         serial: 0,
@@ -15,18 +15,32 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
         deviceType: '',
         isActive: false
     })
-    console.log("deviceData::> ", deviceData.isActive)
     const [serialNo, setSerialNo] = useState(0);
     const [allLocationDetails, setAllLocationDetails] = useState([]);
     const [deviceCount, setDeviceCount] = useState();
     const [imageUpload, setImageUpload] = useState();
     const [imageView, setImageView] = useState();
-
+    const [loactionID, setLocationID] = useState();
+    const [isUpdate, setIsUpdate] = useState(false);
+    const [updateID, setUpdateID] = useState();
+    const [isImageUploadEnable, setIsImageUploadEnable] = useState(false);
+    const [isImageUpload, setIsImageUpload] = useState(false);
 
     useEffect(() => {
-        GetSerialNo();
         GetLocationsDetails();
     }, [])
+
+    useEffect(() => {
+        if (!deviceDialog) {
+            GetLocationsDetails();
+        }
+    }, [deviceDialog])
+
+    useEffect(() => {
+        if (updateRowID) {
+            GetUpdateDeviceDetails();
+        }
+    }, [updateRowID])
 
     useEffect(() => {
         if (deviceData.locationName) {
@@ -34,8 +48,27 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
         }
     }, [deviceData.locationName])
 
+    useEffect(() => {
+        if (!isUpdate && deviceData.locationName) {
+            GetSerialNo();
+        }
+    }, [deviceData.locationName])
+
     function handleClose() {
         setDeviceDialog(false);
+        setDeviceData({
+            ...deviceData,
+            serial: 0,
+            locationName: '',
+            deviceType: '',
+            isActive: false
+        })
+        removeImage();
+        setSerialNo(0);
+        setUpdateID();
+        setUpdateRowID();
+        setIsUpdate(false);
+        setIsImageUploadEnable(false);
     }
 
     function handleChange(e) {
@@ -70,11 +103,13 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
     function GetTheTotalNoOfDevices() {
         const count = allLocationDetails.find(item => item.locationName === deviceData.locationName);
         setDeviceCount(count.noOfDevices)
+        setLocationID(count._id)
     }
 
     const uploadImage = (e) => {
         setImageUpload(e.target.files[0]);
-        setImageView(URL.createObjectURL(e.target.files[0]))
+        setImageView(URL.createObjectURL(e.target.files[0]));
+        setIsImageUpload(true);
     }
 
     const removeImage = () => {
@@ -83,6 +118,7 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
         if (inputRef.current) {
             inputRef.current.value = null; // Reset the input value
         }
+        setIsImageUploadEnable(true);
     }
 
     function onIsActiveChange() {
@@ -92,11 +128,77 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
         });
     }
 
+    function UploadDevice() {
+        if (isUpdate) {
+            const formData = new FormData();
+            formData.append("isActive", deviceData.isActive);
+            formData.append("file", isImageUpload ? imageUpload : imageView);
+            formData.append("updateID", updateID);
 
+            axios.put('http://localhost:8000/Devices/updateDeviceDetail', formData).then((res) => {
+                if (res.data.status == 'Success') {
+                    toast.success("Device details updated successfullt!!");
+                    handleClose();
+                }
+            })
+        } else {
+            if (imageView) {
+                const formData = new FormData();
+                formData.append("serial", serialNo);
+                formData.append("locationName", deviceData.locationName);
+                formData.append("deviceType", deviceData.deviceType);
+                formData.append("isActive", deviceData.isActive /* == true ? parseInt(1) : parseInt(0) */);
+                formData.append("file", imageUpload);
 
+                axios.post('http://localhost:8000/Devices/saveDeviceDetails', formData).then((res) => {
+                    if (res.data.ID) {
+                        UpdateDeviceCount();
+                    } else {
+                        toast.error("Error occured in device saving!!")
+                    }
+                })
+            } else {
+                toast.error("Uplaod image before saving!!")
+            }
+        }
+    }
 
+    function UpdateDeviceCount() {
+        const countUpdateModel = {
+            loactionID: loactionID,
+            deviceCount: deviceCount - 1
+        }
+        axios.put('http://localhost:8000/locations/updateLocationDeviceCount', countUpdateModel).then((res) => {
+            if (res.data.status == 'Success') {
+                setDeviceData({
+                    ...deviceData,
+                    serial: 0,
+                    locationName: '',
+                    deviceType: '',
+                    isActive: false
+                })
+                setDeviceDialog(false);
+                removeImage();
+                setSerialNo(0);
+                toast.success("Device Added Successfully!!");
+            }
+        })
+    }
 
-
+    function GetUpdateDeviceDetails() {
+        axios.get(`http://localhost:8000/Devices/getUpdateDeviceDetailsByID/${updateRowID}`).then((res) => {
+            setDeviceData({
+                ...deviceData,
+                locationName: res.data.DeviceDetails[0].locationName,
+                deviceType: res.data.DeviceDetails[0].deviceType,
+                isActive: res.data.DeviceDetails[0].isActive,
+            })
+            setIsUpdate(true);
+            setImageView(res.data.DeviceDetails[0].image);
+            setUpdateID(res.data.DeviceDetails[0]._id);
+            setSerialNo(res.data.DeviceDetails[0].serial);
+        })
+    }
 
     return (
         <Dialog
@@ -105,7 +207,7 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
             fullWidth
         >
             <DialogTitle sx={{ m: 0, p: 2 }} id="customized-dialog-title">
-                Add devices
+                {isUpdate ? 'Update device' : 'Add devices'}
             </DialogTitle>
             <IconButton
                 aria-label="close"
@@ -130,10 +232,10 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
 
                         validationSchema={
                             Yup.object().shape({
-                                locationName: Yup.string().required('Item Name is required'),
+                                deviceType: Yup.string().matches(/^(pos|kisok|signage)$/, 'Invalid device type').required('Device type is required'),
                             })
                         }
-                        // onSubmit={() => UploadLocation()}
+                        onSubmit={() => UploadDevice()}
                         enableReinitialize
 
                     >
@@ -146,6 +248,27 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
                             <form onSubmit={handleSubmit}>
                                 <Box mt={0}>
                                     <Grid container spacing={2}>
+                                        <Grid item xs={12} md={6}>
+                                            <TextField
+                                                fullWidth
+                                                select
+                                                label="Location Name *"
+                                                id="outlined-size-small"
+                                                size="small"
+                                                name='locationName'
+                                                value={deviceData.locationName}
+                                                onChange={(e) => handleChange(e)}
+                                                inputProps={{
+                                                    readOnly: isUpdate
+                                                }}
+                                            >
+                                                {allLocationDetails.map((row) => (
+                                                    <MenuItem key={row._id} value={row.locationName}>
+                                                        {row.locationName}
+                                                    </MenuItem>
+                                                ))}
+                                            </TextField>
+                                        </Grid>
                                         <Grid item md={6} xs={12}>
                                             <TextField
                                                 fullWidth
@@ -159,44 +282,31 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
                                                 size="small"
                                                 type='text'
                                                 inputProps={{
-                                                    // readOnly: isUpdate
+                                                    readOnly: isUpdate
                                                 }}
                                             />
                                         </Grid>
-                                        <Grid item xs={12} md={6}>
-                                            <TextField
-                                                fullWidth
-                                                select
-                                                label="Location Name"
-                                                id="outlined-size-small"
-                                                size="small"
-                                                name='locationName'
-                                                value={deviceData.locationName}
-                                                onChange={(e) => handleChange(e)}
-                                            >
-                                                {allLocationDetails.map((row) => (
-                                                    <MenuItem key={row._id} value={row.locationName}>
-                                                        {row.locationName}
-                                                    </MenuItem>
-                                                ))}
-                                            </TextField>
-                                        </Grid>
                                         {deviceData.locationName ?
                                             <>
-                                                <Grid item md={6} xs={12}>
-                                                    <Chip label={`No of Accessible devices : ${deviceCount}`} size="small" sx={{ background: '#51AFB9' }} />
-                                                </Grid>
-
+                                                {!isUpdate ?
+                                                    <Grid item md={6} xs={12} >
+                                                        <Chip label={`No of Accessible devices : ${deviceCount}`} size="small" sx={{ background: '#51AFB9' }} />
+                                                    </Grid> : null}
                                                 <Grid item xs={6} md={6}>
                                                     <TextField
                                                         fullWidth
                                                         select
+                                                        error={Boolean(touched.deviceType && errors.deviceType)}
+                                                        helperText={touched.deviceType && errors.deviceType}
                                                         label="Device Type *"
                                                         id="outlined-size-small"
                                                         size="small"
                                                         name='deviceType'
                                                         value={deviceData.deviceType}
                                                         onChange={(e) => handleChange(e)}
+                                                        inputProps={{
+                                                            readOnly: isUpdate
+                                                        }}
                                                     >
                                                         <MenuItem value='pos'>pos </MenuItem>
                                                         <MenuItem value='kisok'>kisok </MenuItem>
@@ -214,7 +324,7 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
                                                         />
                                                     </Grid>
                                                 </Grid>
-                                                {imageView ?
+                                                {(imageView && !isUpdate) ?
                                                     <Grid item xs={12} md={6} >
                                                         <Card >
                                                             <center>
@@ -232,12 +342,59 @@ function AddEditDevice({ deviceDialog, setDeviceDialog }) {
                                                             </center>
                                                         </Card>
                                                     </Grid> : null}
-                                                <Grid item xs={12} md={12} >
+                                                {(isUpdate && imageView) ?
+                                                    <Grid item xs={12} md={6} >
+                                                        {isImageUploadEnable ?
+                                                            <Card >
+                                                                <center>
+                                                                    <img
+                                                                        src={imageView}
+                                                                        width='200vw'
+                                                                        height='250vh'
+                                                                    />
+                                                                    <IconButton>
+                                                                        <CancelIcon
+                                                                            sx={{ color: 'red' }}
+                                                                            onClick={removeImage}
+                                                                        />
+                                                                    </IconButton>
+                                                                </center>
+                                                            </Card>
+                                                            :
+                                                            <Card >
+                                                                <center>
+                                                                    <img
+                                                                        src={`http://localhost:8000/assets/deviceimages/${imageView}`}
+                                                                        width='200vw'
+                                                                        height='250vh'
+                                                                    />
+                                                                    <IconButton>
+                                                                        <CancelIcon
+                                                                            sx={{ color: 'red' }}
+                                                                            onClick={removeImage}
+                                                                        />
+                                                                    </IconButton>
+                                                                </center>
+                                                            </Card>
+                                                        }
+                                                    </Grid> : null}
+                                                <Grid item xs={12} md={12} sx={{ display: 'flex', justifyContent: 'start' }} >
+                                                    <Typography sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', fontSize: '15px' }}>Active </Typography>
                                                     <Switch
                                                         checked={deviceData.isActive}
                                                         onChange={onIsActiveChange}
                                                         name="isActive"
                                                     />
+                                                </Grid>
+                                                <Grid item md={12} xs={12} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                                    <Button
+                                                        variant="contained"
+                                                        size='small'
+                                                        fullWidth
+                                                        type='submit'
+                                                    >
+                                                        {isUpdate ? 'Update' : 'Save'}
+                                                    </Button>
                                                 </Grid>
 
                                             </>

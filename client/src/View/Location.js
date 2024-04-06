@@ -39,6 +39,7 @@ import LastPageIcon from '@mui/icons-material/LastPage';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CreateIcon from '@mui/icons-material/Create';
 import { toast } from 'react-toastify';
+import SearchIcon from '@mui/icons-material/Search';
 
 function TablePaginationActions(props) {
     const theme = useTheme();
@@ -110,6 +111,7 @@ function Location() {
     const [dltDialog, setDltDialog] = useState(false);
     const [deleteID, setDeleteID] = useState();
     const [updateRowID, setUpdateRowID] = useState();
+    const [searchLocation, setSearchLocation] = useState("");
 
 
     useEffect(() => {
@@ -154,7 +156,6 @@ function Location() {
 
     function handleConfirmDelete() {
         axios.delete(`http://localhost:8000/locations/deleteLocationDetails/${deleteID}`).then((res) => {
-            console.log("res delete:> ", res.data)
             if (res.data.message == 'Success') {
                 setDltDialog(false);
                 GetLocationDetails();
@@ -212,6 +213,16 @@ function Location() {
                                     <Divider />
                                     <br />
                                     <TableContainer>
+                                        <Box sx={{ display: 'flex', alignItems: 'flex-end' }}>
+                                            <SearchIcon sx={{ color: 'action.active', mr: 1, my: 0.5 }} />
+                                            <TextField
+                                                id="input-with-sx"
+                                                variant="standard"
+                                                value={searchLocation}
+                                                onChange={(e) => { setSearchLocation(e.target.value) }}
+                                            />
+                                        </Box>
+                                        <br />
                                         <Table sx={{ minWidth: 500 }} size="small" aria-label="a dense table">
                                             <TableHead>
                                                 <TableRow>
@@ -227,7 +238,13 @@ function Location() {
                                                 {(rowsPerPage > 0
                                                     ? locationDetailsGrid.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                                                     : locationDetailsGrid
-                                                ).map((row, i) => (
+                                                ).filter((element) => {
+                                                    if (searchLocation === "") {
+                                                        return element
+                                                    } else if ((element.locationName.toLowerCase()).includes(searchLocation.toLowerCase())) {
+                                                        return element
+                                                    }
+                                                }).map((row, i) => (
                                                     <TableRow key={row._id}>
                                                         <TableCell align='center'>{i + 1}</TableCell>
                                                         <TableCell align='center'>{row.locationName}</TableCell>

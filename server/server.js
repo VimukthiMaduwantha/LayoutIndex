@@ -4,12 +4,15 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const bodyParser = require('body-parser');
 require("dotenv").config();
+const fileUpload = require('express-fileupload');
 
 const app = express();
 const port = process.env.PORT || 8000;
+app.use("/Assets", express.static(__dirname + "/Assets"));
 
 app.use(cors());
 app.use(bodyParser.json());
+app.use(fileUpload());
 const url = process.env.MONGODB_URL;
 
 mongoose.connect(url, {
@@ -32,40 +35,9 @@ app.listen(port, () => {
 const Locations = require('./Routes/LocationRoutes');
 app.use('/locations', Locations);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+//Devices
+const Device = require('./Routes/DeviceRoutes');
+app.use('/Devices', Device)
 
 
 
