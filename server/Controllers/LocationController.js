@@ -82,11 +82,31 @@ const UpdateLocationDeatils = async (req, res) => {
     }
 }
 
+//update location device  count by 1
+const UpdateDeviceCount = async (req, res) => {
+    const locationID = req.body.loactionID;
+    const deviceCount = req.body.deviceCount;
+
+    try {
+        const deviceCountDetails = {
+            noOfDevices: deviceCount
+        }
+        await LocationModel.findByIdAndUpdate(locationID, deviceCountDetails).then(() => {
+            res.status(200).send({ status: 'Success', data: deviceCountDetails })
+        }).catch((err) => {
+            res.status(400).send({ status: err });
+        })
+    } catch (err) {
+        res.status(400).send({ error: err.message });
+    }
+}
+
 
 module.exports = {
     AddLocations,
     GetAllLocationDetails,
     DeleteLocationDeatils,
     GetLocationDetailsByID,
-    UpdateLocationDeatils
+    UpdateLocationDeatils,
+    UpdateDeviceCount
 }

@@ -18,5 +18,9 @@ LocationRoutes.get('/getLocationDetailsByID/:updateRowID', LocationController.Ge
 //update Location details
 LocationRoutes.put('/updateLocationDetails', LocationController.UpdateLocationDeatils);
 
+//update location device  count by 1
+LocationRoutes.put('/updateLocationDeviceCount', LocationController.UpdateDeviceCount);
+
+
 
 module.exports = LocationRoutes;

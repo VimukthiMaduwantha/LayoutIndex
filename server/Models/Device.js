@@ -1,22 +1,26 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const LocationModel = new Schema(
+const DeviceModel = new Schema(
     {
+        serial: {
+            type: String,
+            required: true
+        },
         locationName: {
             type: String,
             required: true
         },
-        locationAddress: {
+        deviceType: {
             type: String,
             required: true
         },
-        phone: {
-            type: String,
+        isActive: {
+            type: Boolean,
             required: true
         },
-        noOfDevices: {
-            type: Number,
+        image: {
+            type: String,
             required: true
         },
         createdDate: {
@@ -26,5 +30,5 @@ const LocationModel = new Schema(
     }
 )
 
-const Location = mongoose.model("Locations", LocationModel);
-module.exports = Location;
+const Devices = mongoose.model("Devices", DeviceModel);
+module.exports = Devices;
